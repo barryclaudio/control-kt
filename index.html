@@ -139,7 +139,7 @@ const $=s=>document.querySelector(s);
 const fmt=(n,d=0)=>n==null||isNaN(n)?"–":Number(n).toLocaleString("es-AR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const num=v=>{if(v===""||v==null)return null;const n=Number(String(v).replace(",","."));return isNaN(n)?null:n};
 /* URL de la implementación de Google Apps Script (termina en /exec) */
-const API="PEGAR_AQUI_URL_DEL_SCRIPT";
+const API="https://script.google.com/macros/s/AKfycbzlqL8bU6ldFOzpvL4LebN_Sy4NGXyhfs37839srBAhLPxyWAJpOWyoqaBDyokyxns8Nw/exec";
 let cfg=null,weeks=[],mantRows=[],dirty=false,clave="",quien="";
 function getLS(k){try{return localStorage.getItem(k)||""}catch(e){return ""}}
 function setLS(k,v){try{localStorage.setItem(k,v)}catch(e){}}

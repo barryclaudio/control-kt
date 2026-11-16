@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control Semanal Kau Tapen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  /* Tierra del Fuego: estepa gris-verde, río frío, señal naranja para alertas. Layout: una columna móvil, tarjetas por equipo. */
+  --bg:#f3f4f1; --surface:#ffffff; --ink:#1c2420; --muted:#5f6b64; --line:#d9ddd6;
+  --accent:#2f5d62; --accent-soft:#e1ecec; --warn:#b5651d; --warn-soft:#f8eadb; --bad:#a83232; --bad-soft:#f6e0df; --ok:#3d7a4a; --ok-soft:#e2efe4;
+  --display:"IBM Plex Sans",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1d2421; --ink:#e6ebe7; --muted:#9aa6a0; --line:#323b37;
+  --accent:#7fb3b8; --accent-soft:#22393b; --warn:#e3a062; --warn-soft:#3b2c1d; --bad:#e58a8a; --bad-soft:#3e2222; --ok:#8cc79a; --ok-soft:#1f3324; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1d2421; --ink:#e6ebe7; --muted:#9aa6a0; --line:#323b37;
+  --accent:#7fb3b8; --accent-soft:#22393b; --warn:#e3a062; --warn-soft:#3b2c1d; --bad:#e58a8a; --bad-soft:#3e2222; --ok:#8cc79a; --ok-soft:#1f3324; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--body)}
+header{padding:20px 16px 8px;max-width:980px;margin:0 auto}
+h1{font:600 22px/1.2 var(--display);margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+nav{display:flex;gap:6px;max-width:980px;margin:8px auto 0;padding:0 16px;flex-wrap:wrap}
+nav button{flex:1;min-width:110px;padding:10px 12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;font:500 14px var(--body);cursor:pointer}
+nav button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+main{max-width:980px;margin:0 auto;padding:12px 16px 60px;display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h2{font:600 15px var(--display);margin:0 0 10px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.card h2 small{font:400 12px var(--body);color:var(--muted)}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+input,textarea,select{font:15px var(--body);padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);width:100%}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.calc{font:500 13px var(--mono);color:var(--ink);font-variant-numeric:tabular-nums;min-height:18px}
+.calc.neg{color:var(--bad)}
+.row{display:grid;grid-template-columns:1.2fr repeat(3,1fr);gap:8px;align-items:end;padding:8px 0;border-top:1px dashed var(--line)}
+.row:first-of-type{border-top:0}
+.row .name{font-weight:600;font-size:14px;align-self:center}
+@media (max-width:560px){.row{grid-template-columns:1fr 1fr}.row .name{grid-column:1/-1}}
+.btn{padding:11px 16px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--surface);font:600 14px var(--body);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.msg{font-size:13px;color:var(--muted)}
+.alerts{display:grid;gap:8px}
+.alert{padding:10px 12px;border-radius:8px;border-left:4px solid;font-size:14px}
+.alert.bad{background:var(--bad-soft);border-color:var(--bad)}
+.alert.warn{background:var(--warn-soft);border-color:var(--warn)}
+.alert.ok{background:var(--ok-soft);border-color:var(--ok)}
+.tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:4px}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font:600 20px var(--mono);font-variant-numeric:tabular-nums}
+.tile .d{font-size:12px;color:var(--muted)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar i.low{background:var(--warn)} .bar i.crit{background:var(--bad)}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:12px}
+th:first-child,td:first-child{text-align:left}
+td button{font:500 12px var(--body);padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--accent);cursor:pointer}
+.mant{display:grid;gap:8px}
+.mantrow{display:grid;grid-template-columns:1fr 2fr 1fr 1fr auto;gap:8px;align-items:end}
+@media (max-width:560px){.mantrow{grid-template-columns:1fr 1fr}}
+.hidden{display:none!important}
+svg text{fill:var(--muted);font:11px var(--mono)}
+.banner{max-width:980px;margin:8px auto 0;padding:0 16px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Control semanal · Kau Tapen Lodge</h1>
+  <div class="sub">Nervous Waters · Temporada 2026-27 · Gasoil, gas, generadores, vehículos y mantenimiento. Se carga una vez por semana, siempre el mismo día.</div>
+</header>
+<div class="banner" id="banner"></div>
+<div class="banner hidden" id="login"><div class="card" style="margin-top:8px"><h2>Ingresar</h2>
+  <div class="actions"><label for="clave" style="min-width:200px">Clave del lodge<input id="clave" type="password" autocomplete="current-password"></label><button class="btn" id="entrar" type="button">Entrar</button><span class="msg" id="loginMsg"></span></div></div></div>
+<nav role="tablist">
+  <button role="tab" id="tab-cargar" aria-selected="true" data-v="cargar">Cargar semana</button>
+  <button role="tab" id="tab-estado" aria-selected="false" data-v="estado">Estado</button>
+  <button role="tab" id="tab-historial" aria-selected="false" data-v="historial">Historial</button>
+  <button id="refresh" type="button" style="flex:0;min-width:auto">Actualizar</button>
+</nav>
+<main>
+  <!-- CARGAR -->
+  <section id="v-cargar" class="view" style="display:grid;gap:14px">
+    <div class="card">
+      <h2>Semana <small id="editInfo"></small></h2>
+      <div class="grid">
+        <label for="fecha">Fecha de medición<input type="date" id="fecha"></label>
+        <label for="quien">Cargado por<input type="text" id="quien" autocomplete="name"></label>
+      </div>
+    </div>
+    <div class="card"><h2>Gasoil · tanques <small>medir con varilla en el centro, desde el fondo</small></h2><div id="f-tanques"></div></div>
+    <div class="card"><h2>Gas · chanchas <small>% del indicador. Si cargaron, % antes y después</small></h2><div id="f-gas"></div></div>
+    <div class="card"><h2>Generadores <small>horómetro</small></h2><div id="f-gen"></div></div>
+    <div class="card"><h2>Vehículos <small>km del tablero</small></h2><div id="f-km" class="grid"></div></div>
+    <div class="card"><h2>Mantenimiento de la semana <small>services, reparaciones, cubiertas</small></h2>
+      <div id="f-mant" class="mant"></div>
+      <div class="actions" style="margin-top:8px"><button class="btn ghost" id="addMant" type="button">Agregar trabajo</button></div>
+    </div>
+    <div class="card"><h2>Notas</h2><textarea id="notas" rows="3" placeholder="Novedades de la semana"></textarea></div>
+    <div class="actions"><button class="btn" id="guardar" type="button">Guardar semana</button><span class="msg" id="saveMsg"></span></div>
+  </section>
+
+  <!-- ESTADO -->
+  <section id="v-estado" class="view hidden" style="gap:14px">
+    <div class="card"><h2>Alertas <small id="estadoFecha"></small></h2><div class="alerts" id="alerts"></div></div>
+    <div class="card"><h2>Reporte PDF</h2><div class="actions"><label for="pdfWeek" style="min-width:180px">Semana<select id="pdfWeek"></select></label><button class="btn" id="pdfBtn" type="button">Descargar reporte PDF</button><span class="msg" id="pdfMsg"></span></div></div>
+    <div class="card"><h2>Gasoil</h2><div class="tiles" id="s-tanques"></div><div id="chart" style="margin-top:12px"></div></div>
+    <div class="card"><h2>Gas</h2><div class="tiles" id="s-gas"></div></div>
+    <div class="card"><h2>Generadores</h2><div class="tiles" id="s-gen"></div></div>
+    <div class="card"><h2>Vehículos</h2><div class="tablewrap"><table id="s-km"></table></div></div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section id="v-historial" class="view hidden" style="gap:14px">
+    <div class="card"><h2>Semanas cargadas <small>litros con fórmula de cilindro</small></h2>
+      <div class="tablewrap"><table id="h-table"></table></div>
+      <div class="actions" style="margin-top:10px"><button class="btn ghost" id="csv" type="button">Descargar CSV</button><button class="btn ghost" id="pdfSeason" type="button">Reporte PDF de la temporada</button><span class="msg" id="csvMsg"></span></div>
+    </div>
+    <div class="card"><h2>Mantenimiento cargado</h2><div class="tablewrap"><table id="h-mant"></table></div></div>
+  </section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const fmt=(n,d=0)=>n==null||isNaN(n)?"–":Number(n).toLocaleString("es-AR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const num=v=>{if(v===""||v==null)return null;const n=Number(String(v).replace(",","."));return isNaN(n)?null:n};
+/* URL de la implementación de Google Apps Script (termina en /exec) */
+const API="PEGAR_AQUI_URL_DEL_SCRIPT";
+let cfg=null,weeks=[],mantRows=[],dirty=false,clave="",quien="";
+function getLS(k){try{return localStorage.getItem(k)||""}catch(e){return ""}}
+function setLS(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function download(name,data,type){const blob=data instanceof Blob?data:new Blob([data],{type});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+
+function vol(h,D,L){if(h==null||!D||!L)return null;h=Math.min(Math.max(h,0),D);const r=D/2;return L*(r*r*Math.acos((r-h)/r)-(r-h)*Math.sqrt(Math.max(0,2*r*h-h*h)))/1000}
+function baseline(fecha){const prev=weeks.filter(w=>w.fecha<fecha);return prev.length?prev[prev.length-1]:(cfg&&cfg.inicial)||null}
+function tankLit(t,cm){return vol(cm,t.d,t.l)}
+function inSeason(f){return cfg&&f>=cfg.temporada.inicio}
+
+/* ---------- cálculos por semana ---------- */
+function calcWeek(w){
+  const p=baseline(w.fecha)||{};const out={tanques:{},gas:{},gen:{},km:{}};
+  for(const t of cfg.tanques){
+    const cur=w.tanques?.[t.k]||{},pr=p.tanques?.[t.k]||{};
+    const L=tankLit(t,num(cur.cm)),Lp=tankLit(t,num(pr.cm)),carga=num(cur.carga)||0;
+    const cons=(L!=null&&Lp!=null)?Lp+carga-L:null;
+    const util=L==null?null:Math.max(0,L-tankLit(t,t.fondo));
+    out.tanques[t.k]={L,cons,util,carga};
+  }
+  for(const g of cfg.gas){
+    const cur=w.gas?.[g.k]||{},pr=p.gas?.[g.k]||{};
+    const pc=num(cur.pct),pp=num(pr.pct),a=num(cur.antes),d=num(cur.despues);
+    const cons=(pc==null||pp==null)?null:(a!=null&&d!=null?(pp-a)+(d-pc):pp-pc);
+    out.gas[g.k]={pct:pc,cons,lit:(cons!=null&&g.cap)?cons/100*g.cap:null};
+  }
+  for(const g of cfg.gen){
+    const c=num(w.gen?.[g.k]),pr=num(p.gen?.[g.k]);
+    const h=(c!=null&&pr!=null)?c-pr:null;
+    out.gen[g.k]={hor:c,hrs:h,lit:h!=null?h*g.lph:null};
+  }
+  for(const v of cfg.vehiculos){
+    const c=num(w.km?.[v.dom]),pr=num(p.km?.[v.dom]);
+    out.km[v.dom]={km:c,rec:(c!=null&&pr!=null)?c-pr:null};
+  }
+  return out;
+}
+function avgCons(k){const xs=weeks.filter(w=>inSeason(w.fecha)).map(w=>calcWeek(w).tanques[k].cons).filter(x=>x!=null&&x>0);return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null}
+
+/* ---------- formulario ---------- */
+function field(id,label,val,step="any",ph=""){return `<label for="${id}">${label}<input id="${id}" type="number" inputmode="decimal" step="${step}" value="${val??""}" placeholder="${ph}"></label>`}
+function buildForm(w){
+  w=w||{};const p=baseline($("#fecha").value)||{};
+  $("#f-tanques").innerHTML=cfg.tanques.map(t=>{const c=w.tanques?.[t.k]||{};return `<div class="row"><div class="name">${t.nombre}<div class="msg">anterior: ${fmt(num(p.tanques?.[t.k]?.cm),1)} cm</div></div>
+    ${field(`t-${t.k}-cm`,"Medición (cm)",c.cm,"0.5")}${field(`t-${t.k}-carga`,"Carga de la semana (L)",c.carga,"1")}
+    <label for="t-${t.k}-remito">Remito / proveedor<input id="t-${t.k}-remito" type="text" value="${esc(c.remito||"")}"></label>
+    <div class="calc" id="c-t-${t.k}" style="grid-column:1/-1"></div></div>`}).join("");
+  $("#f-gas").innerHTML=cfg.gas.map(g=>{const c=w.gas?.[g.k]||{};return `<div class="row"><div class="name">${g.nombre}<div class="msg">anterior: ${fmt(num(p.gas?.[g.k]?.pct))}%</div></div>
+    ${field(`g-${g.k}-pct`,"% medido",c.pct,"1")}${field(`g-${g.k}-antes`,"% antes de cargar",c.antes,"1")}${field(`g-${g.k}-despues`,"% después de cargar",c.despues,"1")}
+    <div class="calc" id="c-g-${g.k}" style="grid-column:1/-1"></div></div>`}).join("");
+  $("#f-gen").innerHTML=cfg.gen.map(g=>`<div class="row"><div class="name">${g.nombre}<div class="msg">anterior: ${fmt(num(p.gen?.[g.k]),1)} h</div></div>
+    ${field(`gen-${g.k}`,"Horómetro (h)",w.gen?.[g.k],"0.1")}<div class="calc" id="c-gen-${g.k}" style="grid-column:span 2"></div></div>`).join("");
+  $("#f-km").innerHTML=cfg.vehiculos.map(v=>`<div>${field(`km-${v.dom}`,`${v.nombre} ${v.dom}`,w.km?.[v.dom],"1",p.km?.[v.dom]!=null?`ant. ${fmt(p.km[v.dom])}`:"")}<div class="calc" id="c-km-${v.dom}"></div></div>`).join("");
+  mantRows=(w.mant||[]).map(m=>({...m}));renderMant();
+  $("#notas").value=w.notas||"";
+  document.querySelectorAll("#v-cargar input").forEach(i=>i.addEventListener("input",()=>{dirty=true;preview()}));
+  preview();
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function renderMant(){
+  const opts=cfg.vehiculos.map(v=>`<option value="${v.dom}">${v.nombre} ${v.dom}</option>`).join("")+`<option value="Lodge">Lodge / otro</option>`;
+  $("#f-mant").innerHTML=mantRows.length?mantRows.map((m,i)=>`<div class="mantrow">
+    <label for="m-${i}-dom">Vehículo<select id="m-${i}-dom">${opts}</select></label>
+    <label for="m-${i}-trab">Trabajo<input id="m-${i}-trab" type="text" value="${esc(m.trabajo||"")}"></label>
+    <label for="m-${i}-costo">Costo ($)<input id="m-${i}-costo" type="number" step="0.01" value="${m.costo??""}"></label>
+    <label for="m-${i}-fac">Factura<input id="m-${i}-fac" type="text" value="${esc(m.factura||"")}"></label>
+    <button class="btn ghost" type="button" data-del="${i}">Quitar</button></div>`).join(""):`<div class="msg">Sin trabajos esta semana.</div>`;
+  mantRows.forEach((m,i)=>{const s=$(`#m-${i}-dom`);if(s)s.value=m.dom||cfg.vehiculos[0].dom});
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{readMant();mantRows.splice(+b.dataset.del,1);renderMant()});
+}
+function readMant(){mantRows=mantRows.map((m,i)=>({dom:$(`#m-${i}-dom`).value,trabajo:$(`#m-${i}-trab`).value.trim(),costo:num($(`#m-${i}-costo`).value),factura:$(`#m-${i}-fac`).value.trim()}))}
+function readForm(){
+  readMant();
+  const w={fecha:$("#fecha").value,tanques:{},gas:{},gen:{},km:{},mant:mantRows.filter(m=>m.trabajo||m.costo),notas:$("#notas").value.trim()};
+  for(const t of cfg.tanques)w.tanques[t.k]={cm:num($(`#t-${t.k}-cm`).value),carga:num($(`#t-${t.k}-carga`).value),remito:$(`#t-${t.k}-remito`).value.trim()};
+  for(const g of cfg.gas)w.gas[g.k]={pct:num($(`#g-${g.k}-pct`).value),antes:num($(`#g-${g.k}-antes`).value),despues:num($(`#g-${g.k}-despues`).value)};
+  for(const g of cfg.gen)w.gen[g.k]=num($(`#gen-${g.k}`).value);
+  for(const v of cfg.vehiculos)w.km[v.dom]=num($(`#km-${v.dom}`).value);
+  return w;
+}
+function preview(){
+  if(!cfg)return;const w=readForm(),c=calcWeek(w);
+  for(const t of cfg.tanques){const r=c.tanques[t.k],el=$(`#c-t-${t.k}`);
+    el.textContent=r.L==null?"":`${fmt(r.L)} L en tanque · útil ${fmt(r.util)} L · consumo semana ${fmt(r.cons)} L${r.cons!=null&&r.cons<0?" · ¿falta anotar una carga?":""}`;
+    el.className="calc"+(r.cons!=null&&r.cons<0?" neg":"")}
+  for(const g of cfg.gas){const r=c.gas[g.k],el=$(`#c-g-${g.k}`);el.textContent=r.cons==null?"":`consumo semana ${fmt(r.cons)} %${r.lit!=null?` (${fmt(r.lit)} L)`:""}`;el.className="calc"+(r.cons!=null&&r.cons<0?" neg":"")}
+  for(const g of cfg.gen){const r=c.gen[g.k],el=$(`#c-gen-${g.k}`);el.textContent=r.hrs==null?"":`${fmt(r.hrs,1)} h en la semana · ${fmt(r.lit)} L estimados`;el.className="calc"+(r.hrs!=null&&r.hrs<0?" neg":"")}
+  for(const v of cfg.vehiculos){const r=c.km[v.dom],el=$(`#c-km-${v.dom}`);el.textContent=r.rec==null?"":`${fmt(r.rec)} km en la semana`;el.className="calc"+(r.rec!=null&&r.rec<0?" neg":"")}
+}
+function nextSaturday(){const last=weeks.length?new Date(weeks[weeks.length-1].fecha+"T12:00"):null;
+  if(last){last.setDate(last.getDate()+7);return last.toISOString().slice(0,10)}
+  const d=new Date();d.setDate(d.getDate()+((6-d.getDay()+7)%7));return d.toISOString().slice(0,10)}
+function loadDate(f){dirty=false;$("#fecha").value=f;const w=weeks.find(x=>x.fecha===f);$("#editInfo").textContent=w?"ya cargada: se va a reemplazar al guardar":"nueva";buildForm(w)}
+
+async function save(){
+  const w=readForm();const msg=$("#saveMsg");
+  if(!w.fecha){msg.textContent="Elegí la fecha de medición.";return}
+  quien=$("#quien").value.trim();if(!quien){msg.textContent="Poné tu nombre en \"Cargado por\".";return}setLS("kt_quien",quien);
+  const btn=$("#guardar");btn.disabled=true;msg.textContent="Guardando…";
+  try{const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"save",clave,week:{...w,por:quien,at:new Date().toISOString()}})});
+    const j=await r.json();if(!j.ok)throw new Error(j.error||"error");
+    msg.textContent="Semana del "+w.fecha.split("-").reverse().join("/")+" guardada.";await load(true);$("#editInfo").textContent="ya cargada: se va a reemplazar al guardar"}
+  catch(e){msg.textContent=String(e.message).includes("clave")?"Clave incorrecta. Volvé a ingresarla.":"No se pudo guardar. Revisá la conexión y probá de nuevo."}
+  finally{btn.disabled=false}
+}
+/* ---------- estado ---------- */
+function renderEstado(){
+  if(!cfg)return;fillPdfWeeks();const al=[];const last=weeks[weeks.length-1];
+  if(!last){$("#alerts").innerHTML=`<div class="alert warn">Todavía no hay semanas cargadas. Empezá por la medición del ${cfg.temporada.inicio.split("-").reverse().join("/")}.</div>`;}
+  const c=last?calcWeek(last):null;
+  $("#estadoFecha").textContent=last?"última carga: "+last.fecha.split("-").reverse().join("/"):"";
+  if(last){const days=(Date.now()-new Date(last.fecha+"T12:00"))/864e5;if(days>8&&inSeason(new Date().toISOString().slice(0,10)))al.push(["warn",`Hace ${Math.floor(days)} días que no se carga la semana.`])}
+  // tanques
+  $("#s-tanques").innerHTML=cfg.tanques.map(t=>{const r=c?c.tanques[t.k]:{};const avg=avgCons(t.k);const aut=(r.util!=null&&avg)?r.util/avg:null;
+    const cap=tankLit(t,t.d),pct=r.L!=null?r.L/cap:0;const crit=r.util!=null&&r.util<=t.pp;
+    if(crit)al.push(["bad",`${t.nombre}: quedan ${fmt(r.util)} L útiles, por debajo del punto de pedido (${fmt(t.pp)} L). Pedir gasoil.`]);
+    if(r.cons!=null&&r.cons<0)al.push(["warn",`${t.nombre}: consumo negativo la última semana. ¿Falta anotar una carga?`]);
+    return `<div class="tile"><span class="k">${t.nombre}</span><span class="v">${fmt(r.util)} L útiles</span>
+      <div class="bar"><i class="${crit?"crit":pct<.3?"low":""}" style="width:${Math.round(pct*100)}%"></i></div>
+      <span class="d">${fmt(r.L)} de ${fmt(cap)} L · última semana ${fmt(r.cons)} L · promedio ${fmt(avg)} L/sem · autonomía ${aut==null?"–":fmt(aut,1)+" sem"}</span></div>`}).join("");
+  // gas
+  $("#s-gas").innerHTML=cfg.gas.map(g=>{const r=c?c.gas[g.k]:{};const pc=r.pct;const low=pc!=null&&pc<=g.alerta*100;
+    if(low)al.push(["bad",`Gas ${g.nombre}: ${fmt(pc)}%. Pedir carga a Gas Austral (aviso en ${fmt(g.alerta*100)}%).`]);
+    return `<div class="tile"><span class="k">${g.nombre}</span><span class="v">${fmt(pc)}%</span><div class="bar"><i class="${low?"crit":pc!=null&&pc<60?"low":""}" style="width:${pc||0}%"></i></div><span class="d">última semana ${fmt(r.cons)} %</span></div>`}).join("");
+  // gen
+  $("#s-gen").innerHTML=cfg.gen.map(g=>{const r=c?c.gen[g.k]:{};const falta=r.hor!=null?g.prox-r.hor:null;
+    const st=falta==null?"":falta<=0?["bad","Service vencido"]:falta<=50?["bad","Hacer service"]:falta<=100?["warn","Service próximo"]:["ok","OK"];
+    if(st&&st[0]==="bad")al.push(["bad",`Generador ${g.nombre}: ${st[1].toLowerCase()} (próximo a ${fmt(g.prox)} h, horómetro ${fmt(r.hor,1)} h).`]);
+    return `<div class="tile"><span class="k">${g.nombre} ${st?`<span class="pill ${st[0]}">${st[1]}</span>`:""}</span><span class="v">${fmt(r.hor,1)} h</span><span class="d">semana ${fmt(r.hrs,1)} h (${fmt(r.lit)} L) · faltan ${fmt(falta)} h para service</span></div>`}).join("");
+  // km
+  const kmLast={};for(const w of weeks)for(const v of cfg.vehiculos){const k=num(w.km?.[v.dom]);if(k!=null)kmLast[v.dom]=k}
+  $("#s-km").innerHTML=`<tr><th>Vehículo</th><th>Km actual</th><th>Última semana</th><th>Off season (hasta ${cfg.temporada.inicio.slice(8,10)}/${cfg.temporada.inicio.slice(5,7)})</th><th>Temporada</th><th>Próx. service</th><th>Estado</th></tr>`+
+    cfg.vehiculos.map(v=>{const cur=kmLast[v.dom]??num(cfg.inicial?.km?.[v.dom]);const ini=weeks.find(w=>w.fecha>=cfg.temporada.inicio&&num(w.km?.[v.dom])!=null);
+      const kmIni=ini?num(ini.km[v.dom]):null;const off=kmIni!=null?kmIni-v.kmFin2526:(cur!=null?cur-v.kmFin2526:null);const temp=(kmIni!=null&&cur!=null)?cur-kmIni:null;
+      const falta=cur!=null?v.prox-cur:null;const st=falta==null?["",""]:falta<=0?["bad","Service vencido"]:falta<=500?["warn","Service próximo"]:["ok","OK"];
+      if(st[0]&&st[0]!=="ok")al.push([st[0],`${v.nombre} ${v.dom}: ${st[1].toLowerCase()} (${fmt(cur)} km, próximo a ${fmt(v.prox)} km).`]);
+      return `<tr><td>${v.nombre} ${v.dom}${v.carga!=="Lodge"?` <span class="pill warn">carga en ${v.carga}</span>`:""}</td><td>${fmt(cur)}</td><td>${fmt(c?.km[v.dom]?.rec)}</td><td>${fmt(off)}</td><td>${fmt(temp)}</td><td>${fmt(v.prox)}</td><td>${st[1]?`<span class="pill ${st[0]}">${st[1]}</span>`:"–"}</td></tr>`}).join("");
+  if(last||al.length)$("#alerts").innerHTML=al.length?al.map(a=>`<div class="alert ${a[0]}">${esc(a[1])}</div>`).join(""):`<div class="alert ok">Todo en orden esta semana.</div>`;
+  renderChart();
+}
+function renderChart(){
+  const pts=weeks.map(w=>{const c=calcWeek(w);return{f:w.fecha,v:cfg.tanques.reduce((s,t)=>s+(c.tanques[t.k].util||0),0)}});
+  const pp=cfg.tanques.reduce((s,t)=>s+t.pp,0);
+  if(pts.length<2){$("#chart").innerHTML=`<div class="msg">El gráfico de litros útiles aparece desde la segunda semana cargada.</div>`;return}
+  const W=640,H=190,P={l:52,r:12,t:12,b:26};const max=Math.max(pp,...pts.map(p=>p.v))*1.1;
+  const x=i=>P.l+i*(W-P.l-P.r)/(pts.length-1),y=v=>H-P.b-v/max*(H-P.t-P.b);
+  const line=pts.map((p,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+  const area=line+`L${x(pts.length-1)},${H-P.b}L${x(0)},${H-P.b}Z`;
+  const ticks=[0,max/2,max].map(v=>`<line x1="${P.l}" x2="${W-P.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${P.l-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`).join("");
+  const lab=pts.map((p,i)=>(i===0||i===pts.length-1||i%4===0)?`<text x="${x(i)}" y="${H-8}" text-anchor="${i===pts.length-1?"end":i===0?"start":"middle"}">${p.f.slice(8,10)}/${p.f.slice(5,7)}</text>`:"").join("");
+  const lp=pts[pts.length-1];
+  $("#chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Litros útiles de gasoil por semana">${ticks}
+    <line x1="${P.l}" x2="${W-P.r}" y1="${y(pp)}" y2="${y(pp)}" stroke="var(--bad)" stroke-dasharray="4 4"/><text x="${W-P.r}" y="${y(pp)-5}" text-anchor="end" style="fill:var(--bad)">punto de pedido ${fmt(pp)} L</text>
+    <path d="${area}" fill="var(--accent-soft)"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    <circle cx="${x(pts.length-1)}" cy="${y(lp.v)}" r="4" fill="var(--accent)"/>${lab}</svg><div class="msg">Litros útiles de gasoil (verde + blanco) por semana.</div>`;
+}
+
+/* ---------- historial ---------- */
+function rowsCSV(){
+  const head=["Fecha"];cfg.tanques.forEach(t=>head.push(`${t.nombre} cm`,`${t.nombre} litros`,`${t.nombre} carga L`,`${t.nombre} consumo L`,`${t.nombre} remito`));
+  cfg.gas.forEach(g=>head.push(`Gas ${g.nombre} %`,`Gas ${g.nombre} consumo %`));cfg.gen.forEach(g=>head.push(`${g.nombre} horómetro`,`${g.nombre} horas semana`,`${g.nombre} L estimados`));
+  cfg.vehiculos.forEach(v=>head.push(`${v.dom} km`,`${v.dom} km semana`));head.push("Mantenimiento","Notas");
+  const rows=[head];
+  for(const w of weeks){const c=calcWeek(w);const r=[w.fecha];
+    cfg.tanques.forEach(t=>{const x=c.tanques[t.k];r.push(w.tanques?.[t.k]?.cm??"",x.L!=null?Math.round(x.L):"",x.carga||"",x.cons!=null?Math.round(x.cons):"",w.tanques?.[t.k]?.remito||"")});
+    cfg.gas.forEach(g=>{const x=c.gas[g.k];r.push(x.pct??"",x.cons??"")});cfg.gen.forEach(g=>{const x=c.gen[g.k];r.push(x.hor??"",x.hrs??"",x.lit!=null?Math.round(x.lit):"")});
+    cfg.vehiculos.forEach(v=>{const x=c.km[v.dom];r.push(x.km??"",x.rec??"")});
+    r.push((w.mant||[]).map(m=>`${m.dom}: ${m.trabajo} $${m.costo??""} ${m.factura||""}`).join(" | "),w.notas||"");rows.push(r)}
+  return rows.map(r=>r.map(v=>{v=String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(";")).join("\n");
+}
+function renderHist(){
+  if(!cfg)return;
+  $("#h-table").innerHTML=`<tr><th>Fecha</th>${cfg.tanques.map(t=>`<th>${t.nombre} L</th><th>Consumo</th>`).join("")}${cfg.gas.map(g=>`<th>${g.nombre} %</th>`).join("")}<th>Gen. h</th><th>Km flota</th><th></th></tr>`+
+    (weeks.length?weeks.slice().reverse().map(w=>{const c=calcWeek(w);const kmT=cfg.vehiculos.reduce((s,v)=>s+(c.km[v.dom].rec||0),0);const gh=cfg.gen.reduce((s,g)=>s+(c.gen[g.k].hrs||0),0);
+      return `<tr><td>${w.fecha.split("-").reverse().join("/")}</td>${cfg.tanques.map(t=>`<td>${fmt(c.tanques[t.k].L)}</td><td>${fmt(c.tanques[t.k].cons)}</td>`).join("")}${cfg.gas.map(g=>`<td>${fmt(c.gas[g.k].pct)}</td>`).join("")}<td>${fmt(gh,1)}</td><td>${fmt(kmT)}</td><td><button type="button" data-edit="${w.fecha}">Editar</button></td></tr>`}).join(""):`<tr><td colspan="12" style="text-align:left">Sin semanas cargadas.</td></tr>`);
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{show("cargar");loadDate(b.dataset.edit)});
+  const ms=weeks.flatMap(w=>(w.mant||[]).map(m=>({...m,fecha:w.fecha})));
+  $("#h-mant").innerHTML=`<tr><th>Fecha</th><th>Vehículo</th><th style="text-align:left">Trabajo</th><th>Costo</th><th>Factura</th></tr>`+(ms.length?ms.map(m=>`<tr><td>${m.fecha.split("-").reverse().join("/")}</td><td>${esc(m.dom)}</td><td style="text-align:left;white-space:normal">${esc(m.trabajo||"")}</td><td>$ ${fmt(m.costo,2)}</td><td>${esc(m.factura||"")}</td></tr>`).join("")+`<tr><td colspan="3"><b>Total</b></td><td><b>$ ${fmt(ms.reduce((s,m)=>s+(m.costo||0),0),2)}</b></td><td></td></tr>`:`<tr><td colspan="5" style="text-align:left">Sin trabajos cargados.</td></tr>`);
+}
+
+/* ---------- navegación ---------- */
+function show(v){document.querySelectorAll(".view").forEach(s=>{s.classList.toggle("hidden",s.id!=="v-"+v);if(s.id==="v-"+v)s.style.display="grid"});
+  document.querySelectorAll("nav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.v===v));if(v==="estado")renderEstado();if(v==="historial")renderHist()}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
+$("#fecha").addEventListener("change",e=>loadDate(e.target.value));
+$("#guardar").onclick=save;
+$("#addMant").onclick=()=>{readMant();mantRows.push({dom:cfg.vehiculos[0].dom});renderMant()};
+$("#csv").onclick=()=>{download("KT_control_semanal_2026-27.csv","\ufeff"+rowsCSV(),"text/csv");$("#csvMsg").textContent="Listo."};
+
+
+/* ---------- PDF ---------- */
+const dmy=f=>f?f.split("-").reverse().join("/"):"";
+function weekAlerts(w,c){const al=[];
+  for(const t of cfg.tanques){const r=c.tanques[t.k];if(r.util!=null&&r.util<=t.pp)al.push(`${t.nombre}: ${fmt(r.util)} L útiles, debajo del punto de pedido (${fmt(t.pp)} L). Pedir gasoil.`);if(r.cons!=null&&r.cons<0)al.push(`${t.nombre}: consumo negativo, revisar si falta anotar una carga.`)}
+  for(const g of cfg.gas){const r=c.gas[g.k];if(r.pct!=null&&r.pct<=g.alerta*100)al.push(`Gas ${g.nombre}: ${fmt(r.pct)}%. Pedir carga.`)}
+  for(const g of cfg.gen){const r=c.gen[g.k];if(r.hor!=null&&g.prox-r.hor<=50)al.push(`Generador ${g.nombre}: ${g.prox-r.hor<=0?"service vencido":"hacer service"} (${fmt(r.hor,1)} h, próximo ${fmt(g.prox)} h).`)}
+  for(const v of cfg.vehiculos){const r=c.km[v.dom];if(r.km!=null&&v.prox-r.km<=500)al.push(`${v.nombre} ${v.dom}: ${v.prox-r.km<=0?"service vencido":"service próximo"} (${fmt(r.km)} km, próximo ${fmt(v.prox)} km).`)}
+  return al}
+function pdfDoc(){const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});doc.setFont("helvetica");return doc}
+function pdfHeader(doc,title,sub){doc.setFillColor(47,93,98);doc.rect(0,0,210,24,"F");doc.setTextColor(255);doc.setFontSize(15);doc.setFont("helvetica","bold");doc.text(title,14,11);
+  doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.text(sub,14,18);doc.setTextColor(28,36,32);return 32}
+function section(doc,y,t){if(y>260){doc.addPage();y=18}doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(t,14,y);doc.setFont("helvetica","normal");return y+3}
+function tbl(doc,y,head,body,opts={}){doc.autoTable({startY:y,head:[head],body,theme:"grid",styles:{font:"helvetica",fontSize:8.5,cellPadding:1.8,lineColor:[217,221,214]},headStyles:{fillColor:[225,236,236],textColor:[28,36,32],fontStyle:"bold"},columnStyles:opts.cols||{},margin:{left:14,right:14}});return doc.lastAutoTable.finalY+7}
+function pdfFooter(doc){const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7.5);doc.setTextColor(95,107,100);doc.text(`Control semanal Kau Tapen · generado ${new Date().toLocaleString("es-AR")} · página ${i} de ${n}`,14,290)}}
+function savePDF(doc,name,msgEl){download(name,doc.output("blob"));msgEl.textContent="Listo."}
+function seasonTotals(upTo){const ws=weeks.filter(w=>inSeason(w.fecha)&&w.fecha<=upTo);const t={gas:0,cargas:0,hrs:0,genL:0,km:0,mant:0,n:ws.length};
+  for(const w of ws){const c=calcWeek(w);cfg.tanques.forEach(k=>{const r=c.tanques[k.k];if(r.cons>0)t.gas+=r.cons;t.cargas+=r.carga||0});cfg.gen.forEach(g=>{t.hrs+=c.gen[g.k].hrs||0;t.genL+=c.gen[g.k].lit||0});
+    cfg.vehiculos.forEach(v=>{const r=c.km[v.dom].rec;if(r>0)t.km+=r});t.mant+=(w.mant||[]).reduce((s,m)=>s+(m.costo||0),0)}return t}
+function pdfWeek(f){
+  const w=weeks.find(x=>x.fecha===f);if(!w)return null;const c=calcWeek(w);const doc=pdfDoc();
+  let y=pdfHeader(doc,"Kau Tapen Lodge · Reporte semanal",`Semana del ${dmy(f)} · Temporada 2026-27`);
+  const al=weekAlerts(w,c);y=section(doc,y,"Alertas");
+  doc.setFontSize(9.5);if(!al.length){doc.text("Sin alertas esta semana.",14,y+4);y+=10}else{al.forEach(a=>{const lines=doc.splitTextToSize("• "+a,182);doc.setTextColor(168,50,50);doc.text(lines,14,y+4);y+=lines.length*4.6});doc.setTextColor(28,36,32);y+=5}
+  y=section(doc,y,"Gasoil");
+  y=tbl(doc,y,["Tanque","cm","Litros","Útiles","Carga","Consumo sem.","Prom. sem.","Autonomía"],cfg.tanques.map(t=>{const r=c.tanques[t.k],a=avgCons(t.k);return[t.nombre,fmt(num(w.tanques?.[t.k]?.cm),1),fmt(r.L),fmt(r.util),fmt(r.carga),fmt(r.cons),fmt(a),(r.util!=null&&a)?fmt(r.util/a,1)+" sem":"–"]}),{cols:{0:{halign:"left"}}});
+  y=section(doc,y,"Gas");
+  y=tbl(doc,y,["Chancha","% medido","Consumo sem. (%)","Cargó (antes y después)"],cfg.gas.map(g=>{const r=c.gas[g.k],x=w.gas?.[g.k]||{};return[g.nombre,fmt(r.pct)+"%",fmt(r.cons),x.antes!=null?`${fmt(x.antes)}% a ${fmt(x.despues)}%`:"–"]}));
+  y=section(doc,y,"Generadores");
+  y=tbl(doc,y,["Generador","Horómetro","Horas sem.","Litros est.","Próx. service","Faltan (h)"],cfg.gen.map(g=>{const r=c.gen[g.k];return[g.nombre,fmt(r.hor,1),fmt(r.hrs,1),fmt(r.lit),fmt(g.prox),r.hor!=null?fmt(g.prox-r.hor):"–"]}));
+  y=section(doc,y,"Vehículos");
+  y=tbl(doc,y,["Vehículo","Km","Km semana","Próx. service","Faltan (km)","Carga gasoil"],cfg.vehiculos.map(v=>{const r=c.km[v.dom];return[`${v.nombre} ${v.dom}`,fmt(r.km),fmt(r.rec),fmt(v.prox),r.km!=null?fmt(v.prox-r.km):"–",v.carga]}));
+  const m=w.mant||[];if(m.length){y=section(doc,y,"Mantenimiento de la semana");y=tbl(doc,y,["Vehículo","Trabajo","Costo","Factura"],m.map(x=>[x.dom,x.trabajo||"","$ "+fmt(x.costo,2),x.factura||""]).concat([["Total","","$ "+fmt(m.reduce((s,x)=>s+(x.costo||0),0),2),""]]),{cols:{1:{cellWidth:90}}})}
+  const t=seasonTotals(f);y=section(doc,y,"Acumulado de la temporada (desde "+dmy(cfg.temporada.inicio)+")");
+  y=tbl(doc,y,["Semanas","Gasoil consumido (L)","Gasoil cargado (L)","Horas generador","Litros generador","Km flota","Mantenimiento ($)"],[[t.n,fmt(t.gas),fmt(t.cargas),fmt(t.hrs,1),fmt(t.genL),fmt(t.km),fmt(t.mant,2)]]);
+  if(w.notas){y=section(doc,y,"Notas");doc.setFontSize(9.5);doc.text(doc.splitTextToSize(w.notas,182),14,y+4)}
+  pdfFooter(doc);return doc}
+function pdfSeason(){
+  const doc=pdfDoc();let y=pdfHeader(doc,"Kau Tapen Lodge · Reporte de temporada",`Temporada 2026-27 · ${weeks.length} semanas cargadas · última ${dmy(weeks[weeks.length-1]?.fecha)}`);
+  const last=weeks[weeks.length-1];const t=seasonTotals(last?last.fecha:"9999");
+  y=section(doc,y,"Resumen");y=tbl(doc,y,["Semanas","Gasoil consumido (L)","Gasoil cargado (L)","Horas generador","Litros generador","Km flota","Mantenimiento ($)"],[[t.n,fmt(t.gas),fmt(t.cargas),fmt(t.hrs,1),fmt(t.genL),fmt(t.km),fmt(t.mant,2)]]);
+  if(last){const c=calcWeek(last);const al=weekAlerts(last,c);y=section(doc,y,"Alertas a la última semana");doc.setFontSize(9.5);
+    if(!al.length){doc.text("Sin alertas.",14,y+4);y+=10}else{al.forEach(a=>{const l=doc.splitTextToSize("• "+a,182);doc.setTextColor(168,50,50);doc.text(l,14,y+4);y+=l.length*4.6});doc.setTextColor(28,36,32);y+=5}}
+  y=section(doc,y,"Semana por semana");
+  y=tbl(doc,y,["Fecha",...cfg.tanques.flatMap(t=>[t.nombre.replace("Tanque ","")+" L","Cons."]),...cfg.gas.map(g=>g.nombre+" %"),"Gen. h","Km flota"],
+    weeks.map(w=>{const c=calcWeek(w);return[dmy(w.fecha),...cfg.tanques.flatMap(k=>[fmt(c.tanques[k.k].L),fmt(c.tanques[k.k].cons)]),...cfg.gas.map(g=>fmt(c.gas[g.k].pct)),fmt(cfg.gen.reduce((s,g)=>s+(c.gen[g.k].hrs||0),0),1),fmt(cfg.vehiculos.reduce((s,v)=>s+(c.km[v.dom].rec||0),0))]}));
+  const ms=weeks.flatMap(w=>(w.mant||[]).map(m=>[dmy(w.fecha),m.dom,m.trabajo||"","$ "+fmt(m.costo,2),m.factura||""]));
+  if(ms.length){y=section(doc,y,"Mantenimiento");y=tbl(doc,y,["Fecha","Vehículo","Trabajo","Costo","Factura"],ms.concat([["Total","","","$ "+fmt(t.mant,2),""]]),{cols:{2:{cellWidth:80}}})}
+  pdfFooter(doc);return doc}
+function fillPdfWeeks(){const sel=$("#pdfWeek");if(!sel)return;const cur=sel.value;sel.innerHTML=weeks.slice().reverse().map(w=>`<option value="${w.fecha}">${dmy(w.fecha)}</option>`).join("")||`<option value="">Sin semanas</option>`;if(cur&&weeks.some(w=>w.fecha===cur))sel.value=cur}
+$("#pdfBtn").onclick=()=>{const m=$("#pdfMsg");if(!window.jspdf){m.textContent="No se cargó el generador de PDF. Recargá la página.";return}const f=$("#pdfWeek").value;if(!f){m.textContent="No hay semanas cargadas.";return}savePDF(pdfWeek(f),`KT_reporte_semana_${f}.pdf`,m)};
+$("#pdfSeason").onclick=()=>{const m=$("#csvMsg");if(!window.jspdf){m.textContent="No se cargó el generador de PDF. Recargá la página.";return}if(!weeks.length){m.textContent="No hay semanas cargadas.";return}savePDF(pdfSeason(),"KT_reporte_temporada_2026-27.pdf",m)};
+
+/* ---------- arranque ---------- */
+function banner(t){$("#banner").innerHTML=t?`<div class="alert warn">${t}</div>`:""}
+async function load(silent){
+  if(!silent)banner("Cargando datos…");
+  try{const r=await fetch(API+"?action=data&clave="+encodeURIComponent(clave));const j=await r.json();
+    if(!j.ok){if(String(j.error).includes("clave")){showLogin("Clave incorrecta.");return}throw new Error(j.error)}
+    const first=!cfg;cfg=j.config;weeks=(j.semanas||[]).sort((a,b)=>a.fecha<b.fecha?-1:1);banner("");$("#login").classList.add("hidden");
+    if(first&&!dirty)loadDate(nextSaturday());renderEstado();renderHist()}
+  catch(e){banner("No se pudieron traer los datos. Revisá la conexión y tocá Actualizar.")}
+}
+function showLogin(err){$("#login").classList.remove("hidden");$("#loginMsg").textContent=err||"";$("#clave").focus()}
+$("#entrar").onclick=()=>{clave=$("#clave").value.trim();if(!clave)return;setLS("kt_clave",clave);load()};
+$("#clave").addEventListener("keydown",e=>{if(e.key==="Enter")$("#entrar").click()});
+$("#refresh").onclick=()=>load();
+$("#quien").value=getLS("kt_quien");
+clave=getLS("kt_clave");
+if(API.startsWith("PEGAR"))banner("Falta configurar la URL del script en el archivo (constante API).");else if(clave)load();else showLogin();
+</script>
+</body>
+</html>
